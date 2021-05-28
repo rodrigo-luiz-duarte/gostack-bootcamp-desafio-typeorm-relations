@@ -5,7 +5,7 @@ import ICreateProductDTO from '@modules/products/dtos/ICreateProductDTO';
 import IUpdateProductsQuantityDTO from '@modules/products/dtos/IUpdateProductsQuantityDTO';
 import Product from '../entities/Product';
 
-interface IFindProducts {
+export interface IFindProducts {
   id: string;
 }
 
@@ -37,9 +37,15 @@ class ProductsRepository implements IProductsRepository {
   }
 
   public async findAllById(products: IFindProducts[]): Promise<Product[]> {
+    const ids: string[] = [];
+
+    products.forEach(p => {
+      ids.push(p.id);
+    });
+
     const productList = await this.ormRepository.find({
       where: {
-        id: In(products),
+        id: In(ids),
       },
     });
 
@@ -49,8 +55,31 @@ class ProductsRepository implements IProductsRepository {
   public async updateQuantity(
     products: IUpdateProductsQuantityDTO[],
   ): Promise<Product[]> {
-    // TODO
-    return null;
+    const updatedProducts: Product[] = [];
+
+    const productIds: IFindProducts[] = [];
+
+    products.forEach(productData => {
+      productIds.push({ id: productData.id });
+    });
+
+    const findProducts = await this.findAllById(productIds);
+
+    if (!findProducts) {
+      return [];
+    }
+
+    findProducts.forEach(async product => {
+      const updateInfo = products.find(p => p.id === product.id);
+
+      if (updateInfo) {
+        product.quantity = updateInfo.quantity; // eslint-disable-line no-param-reassign
+        const updatedProduct = await this.ormRepository.save(product);
+        updatedProducts.push(updatedProduct);
+      }
+    });
+
+    return updatedProducts;
   }
 }
 
